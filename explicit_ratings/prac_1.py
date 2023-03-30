@@ -4,37 +4,15 @@ import numpy as np
 import pandas as pd
 from scipy.linalg import cho_factor, cho_solve
 import matplotlib.pyplot as plt
-from recommender_systems.prac_1.functions import reg_logll, rmse, index_data
+from functions import reg_logll, rmse, index_data, create_ratings_df
+# from ..utils.functions import reg_logll, rmse, index_data, create_ratings_df
+# from utils.functions import reg_logll, rmse, index_data, create_ratings_df
+# from recommender_systems.functions import reg_logll, rmse, index_data, create_ratings_df
 
 gc.collect()
 
-ratings = pd.read_csv("ratings_25m.csv")
-# ratings = pd.read_csv("ratings_small.csv")
-ratings = ratings.drop(columns="timestamp")
-# use 1 to 10 scale to work in integers
-ratings["rating_10"] = ratings["rating"] * 2
-# start the user and movie ratings at 0
-ratings["userId"] = ratings["userId"] - 1
-ratings["movieId"] = ratings["movieId"] - 1
-print(
-    f"User id: min={np.min(ratings['userId'])}, max = {np.max(ratings['userId'])}, total = {ratings['userId'].nunique()}"
-)
-print(
-    f"Movie id: min={np.min(ratings['movieId'])}, max = {np.max(ratings['movieId'])}, total = {ratings['movieId'].nunique()}"
-)
-# There is an issue that not all movies are present in the ratings csv.
-# The number of movie ids = 59,047 but the maximum movie id = 209170
-# We need to add a column to the ratings dataframe that matches
-# each movie id to a new id from 0 to 59,046.
-idShift = pd.DataFrame()
-idShift["movieId"] = ratings["movieId"].unique().copy()
-idShift = idShift.sort_values(by="movieId")
-idShift.reset_index(drop=True, inplace=True)
-idShift.reset_index(drop=False, inplace=True)
-idShift.columns = ["movieId_order", "movieId"]
-
 # Combine dataframes on "movieId"
-ratings = pd.merge(ratings, idShift)
+ratings = create_ratings_df(file_name = "ratings_small.csv")
 
 
 user_ratings, user_start_index, user_end_index = index_data(
@@ -58,17 +36,16 @@ N = ratings["movieId"].nunique()
 
 # Delete ratings from memory to save some space now that all operations have been done with it
 del ratings
-del idShift
 gc.collect()
 
 lmd = 0.1
 tau = 0.01
 alpha = 0.01
 # Randomly initialise U, V, b_m and b_n
-U = np.random.normal(scale=np.sqrt(5 / np.sqrt(latentDim)), size=latentDim * M).reshape(
+U = np.random.normal(scale=5 / np.sqrt(latentDim), size=latentDim * M).reshape(
     M, latentDim
 )
-V = np.random.normal(scale=np.sqrt(5 / np.sqrt(latentDim)), size=latentDim * N).reshape(
+V = np.random.normal(scale=5 / np.sqrt(latentDim), size=latentDim * N).reshape(
     N, latentDim
 )
 b_m = np.zeros(M)
@@ -187,21 +164,21 @@ while not conv:
     print(f"RMSE = {rmse_vals[-1]}")
     print(f"Maximum dif in {np.max(dif)}")
 
-    # Save parameters every 10 iterations
-    if itr % 5 == 0:
-        with open(f"param/u_matrix_{itr}.npy", "wb") as f:
-            np.save(f, U)
-        with open(f"param/v_matrix_{itr}.npy", "wb") as f:
-            np.save(f, V)
-        with open(f"param/bias_user_{itr}.npy", "wb") as f:
-            np.save(f, b_m)
-        with open(f"param/bias_movie_{itr}.npy", "wb") as f:
-            np.save(f, b_n)
-        # Store log likelihood and rmse
-        with open("param/loglik.npy", "wb") as f:
-            np.save(f, np.array(loglike))
-        with open("param/rmse_vals.npy", "wb") as f:
-            np.save(f, np.array(rmse_vals))
+    # # Save parameters every 10 iterations
+    # if itr % 5 == 0:
+    #     with open(f"param/u_matrix_{itr}.npy", "wb") as f:
+    #         np.save(f, U)
+    #     with open(f"param/v_matrix_{itr}.npy", "wb") as f:
+    #         np.save(f, V)
+    #     with open(f"param/bias_user_{itr}.npy", "wb") as f:
+    #         np.save(f, b_m)
+    #     with open(f"param/bias_movie_{itr}.npy", "wb") as f:
+    #         np.save(f, b_n)
+    #     # Store log likelihood and rmse
+    #     with open("param/loglik.npy", "wb") as f:
+    #         np.save(f, np.array(loglike))
+    #     with open("param/rmse_vals.npy", "wb") as f:
+    #         np.save(f, np.array(rmse_vals))
 
     if (np.max(dif) < 0.05) or (itr == maxIter):
         conv = True
@@ -215,39 +192,39 @@ while not conv:
 
     gc.collect()
 
-# Save final parameters
-with open("param/u_matrix.npy", "wb") as f:
-    np.save(f, U)
-with open("param/v_matrix.npy", "wb") as f:
-    np.save(f, V)
-with open("param/bias_user.npy", "wb") as f:
-    np.save(f, b_m)
-with open("param/bias_movie.npy", "wb") as f:
-    np.save(f, b_n)
-# Store log likelihood and rmse
-with open("param/loglik.npy", "wb") as f:
-    np.save(f, np.array(loglike))
-with open("param/rmse_vals.npy", "wb") as f:
-    np.save(f, np.array(rmse_vals))
+# # Save final parameters
+# with open("param/u_matrix.npy", "wb") as f:
+#     np.save(f, U)
+# with open("param/v_matrix.npy", "wb") as f:
+#     np.save(f, V)
+# with open("param/bias_user.npy", "wb") as f:
+#     np.save(f, b_m)
+# with open("param/bias_movie.npy", "wb") as f:
+#     np.save(f, b_n)
+# # Store log likelihood and rmse
+# with open("param/loglik.npy", "wb") as f:
+#     np.save(f, np.array(loglike))
+# with open("param/rmse_vals.npy", "wb") as f:
+#     np.save(f, np.array(rmse_vals))
 
-# Plot log likelihood
-plt.figure(figsize=(9, 6))
-plt.plot(loglike, color="#1E63A4")
-plt.axhline(loglike[-1], color="#F05225", linestyle="dotted", label="Final LL value")
-plt.xlabel("Iteration")
-plt.ylabel("Log likelihood")
-plt.title("Log likelihood over training iterations")
-plt.savefig("figures/loglikelihood.png")
-plt.show()
+# # Plot log likelihood
+# plt.figure(figsize=(9, 6))
+# plt.plot(loglike, color="#1E63A4")
+# plt.axhline(loglike[-1], color="#F05225", linestyle="dotted", label="Final LL value")
+# plt.xlabel("Iteration")
+# plt.ylabel("Log likelihood")
+# plt.title("Log likelihood over training iterations")
+# plt.savefig("figures/loglikelihood.png")
+# plt.show()
 
-# Plot RMSE
-plt.figure(figsize=(9, 6))
-plt.plot(rmse_vals, color="#1E63A4")
-plt.axhline(
-    rmse_vals[-1], color="#F05225", linestyle="dotted", label="Final RMSE value"
-)
-plt.xlabel("Iteration")
-plt.ylabel("RMSE")
-plt.title("RMSE over training iterations")
-plt.savefig("figures/RMSE.png")
-plt.show()
+# # Plot RMSE
+# plt.figure(figsize=(9, 6))
+# plt.plot(rmse_vals, color="#1E63A4")
+# plt.axhline(
+#     rmse_vals[-1], color="#F05225", linestyle="dotted", label="Final RMSE value"
+# )
+# plt.xlabel("Iteration")
+# plt.ylabel("RMSE")
+# plt.title("RMSE over training iterations")
+# plt.savefig("figures/RMSE.png")
+# plt.show()

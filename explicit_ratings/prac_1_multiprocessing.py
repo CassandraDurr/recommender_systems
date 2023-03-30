@@ -4,7 +4,7 @@ from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from recommender_systems.prac_1.functions import reg_logll, rmse, index_data, update_user, update_movie
+from recommender_systems.utils.functions import reg_logll, rmse, index_data, update_user, update_movie
 
 gc.collect()
 
