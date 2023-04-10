@@ -1,18 +1,14 @@
 """Module to build recommender system from prac 1."""
 import gc
 import numpy as np
-import pandas as pd
 from scipy.linalg import cho_factor, cho_solve
 import matplotlib.pyplot as plt
 from functions import reg_logll, rmse, index_data, create_ratings_df
-# from ..utils.functions import reg_logll, rmse, index_data, create_ratings_df
-# from utils.functions import reg_logll, rmse, index_data, create_ratings_df
-# from recommender_systems.functions import reg_logll, rmse, index_data, create_ratings_df
 
 gc.collect()
 
 # Combine dataframes on "movieId"
-ratings = create_ratings_df(file_name = "ratings_small.csv")
+ratings = create_ratings_df(file_name="ratings_small.csv")
 
 
 user_ratings, user_start_index, user_end_index = index_data(
@@ -164,21 +160,21 @@ while not conv:
     print(f"RMSE = {rmse_vals[-1]}")
     print(f"Maximum dif in {np.max(dif)}")
 
-    # # Save parameters every 10 iterations
-    # if itr % 5 == 0:
-    #     with open(f"param/u_matrix_{itr}.npy", "wb") as f:
-    #         np.save(f, U)
-    #     with open(f"param/v_matrix_{itr}.npy", "wb") as f:
-    #         np.save(f, V)
-    #     with open(f"param/bias_user_{itr}.npy", "wb") as f:
-    #         np.save(f, b_m)
-    #     with open(f"param/bias_movie_{itr}.npy", "wb") as f:
-    #         np.save(f, b_n)
-    #     # Store log likelihood and rmse
-    #     with open("param/loglik.npy", "wb") as f:
-    #         np.save(f, np.array(loglike))
-    #     with open("param/rmse_vals.npy", "wb") as f:
-    #         np.save(f, np.array(rmse_vals))
+    # Save parameters every 5 iterations
+    if itr % 5 == 0:
+        with open(f"param/u_matrix_{itr}.npy", "wb") as f:
+            np.save(f, U)
+        with open(f"param/v_matrix_{itr}.npy", "wb") as f:
+            np.save(f, V)
+        with open(f"param/bias_user_{itr}.npy", "wb") as f:
+            np.save(f, b_m)
+        with open(f"param/bias_movie_{itr}.npy", "wb") as f:
+            np.save(f, b_n)
+        # Store log likelihood and rmse
+        with open("param/loglik.npy", "wb") as f:
+            np.save(f, np.array(loglike))
+        with open("param/rmse_vals.npy", "wb") as f:
+            np.save(f, np.array(rmse_vals))
 
     if (np.max(dif) < 0.05) or (itr == maxIter):
         conv = True
@@ -192,39 +188,39 @@ while not conv:
 
     gc.collect()
 
-# # Save final parameters
-# with open("param/u_matrix.npy", "wb") as f:
-#     np.save(f, U)
-# with open("param/v_matrix.npy", "wb") as f:
-#     np.save(f, V)
-# with open("param/bias_user.npy", "wb") as f:
-#     np.save(f, b_m)
-# with open("param/bias_movie.npy", "wb") as f:
-#     np.save(f, b_n)
-# # Store log likelihood and rmse
-# with open("param/loglik.npy", "wb") as f:
-#     np.save(f, np.array(loglike))
-# with open("param/rmse_vals.npy", "wb") as f:
-#     np.save(f, np.array(rmse_vals))
+# Save final parameters
+with open("param/u_matrix.npy", "wb") as f:
+    np.save(f, U)
+with open("param/v_matrix.npy", "wb") as f:
+    np.save(f, V)
+with open("param/bias_user.npy", "wb") as f:
+    np.save(f, b_m)
+with open("param/bias_movie.npy", "wb") as f:
+    np.save(f, b_n)
+# Store log likelihood and rmse
+with open("param/loglik.npy", "wb") as f:
+    np.save(f, np.array(loglike))
+with open("param/rmse_vals.npy", "wb") as f:
+    np.save(f, np.array(rmse_vals))
 
-# # Plot log likelihood
-# plt.figure(figsize=(9, 6))
-# plt.plot(loglike, color="#1E63A4")
-# plt.axhline(loglike[-1], color="#F05225", linestyle="dotted", label="Final LL value")
-# plt.xlabel("Iteration")
-# plt.ylabel("Log likelihood")
-# plt.title("Log likelihood over training iterations")
-# plt.savefig("figures/loglikelihood.png")
-# plt.show()
+# Plot log likelihood
+plt.figure(figsize=(9, 6))
+plt.plot(loglike, color="#1E63A4")
+plt.axhline(loglike[-1], color="#F05225", linestyle="dotted", label="Final LL value")
+plt.xlabel("Iteration")
+plt.ylabel("Log likelihood")
+plt.title("Log likelihood over training iterations")
+plt.savefig("figures/loglikelihood.png")
+plt.show()
 
-# # Plot RMSE
-# plt.figure(figsize=(9, 6))
-# plt.plot(rmse_vals, color="#1E63A4")
-# plt.axhline(
-#     rmse_vals[-1], color="#F05225", linestyle="dotted", label="Final RMSE value"
-# )
-# plt.xlabel("Iteration")
-# plt.ylabel("RMSE")
-# plt.title("RMSE over training iterations")
-# plt.savefig("figures/RMSE.png")
-# plt.show()
+# Plot RMSE
+plt.figure(figsize=(9, 6))
+plt.plot(rmse_vals, color="#1E63A4")
+plt.axhline(
+    rmse_vals[-1], color="#F05225", linestyle="dotted", label="Final RMSE value"
+)
+plt.xlabel("Iteration")
+plt.ylabel("RMSE")
+plt.title("RMSE over training iterations")
+plt.savefig("figures/RMSE.png")
+plt.show()

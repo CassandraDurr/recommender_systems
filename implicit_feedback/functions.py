@@ -14,9 +14,6 @@ class BayesianPersonalisedRanking:
         num_items,
         latent_dim,
         learning_rate,
-        lmd_user,
-        lmd_posupdates,
-        lmd_neg_updates,
         user_idx,
         user_start_index,
         user_end_index,
@@ -28,21 +25,19 @@ class BayesianPersonalisedRanking:
         self.num_items = num_items
         self.latent_dim = latent_dim
         self.learning_rate = learning_rate
-        # Regularisation parameters
-        self.lmd_user = lmd_user
-        self.lmd_posupdates = lmd_posupdates
-        self.lmd_neg_updates = lmd_neg_updates
         # User/ movie indices and star, end arrays per user
         self.user_idx = user_idx
         self.user_start_index = user_start_index
         self.user_end_index = user_end_index
 
     def predict(self, user: np.array, movie: np.array):
-        """Prediction formula for BPR - dot product between user trait vector and movie trait vector.
+        """Prediction formula for BPR.
+
+        Dot product between user trait vector and movie trait vector.
 
         Args:
-            user (np.array): _description_
-            movie (np.array): _description_
+            user (np.array): userId.
+            movie (np.array): movieId.
 
         Returns:
             np.array: Dot product of the user vector and movie vector.
@@ -62,19 +57,17 @@ class BayesianPersonalisedRanking:
             probs *= 1.0 / probs.sum()
         return probs
 
-    def draw_triplet_per_user_naive(
+    def sample_negative_per_user_naive(
         self, user: int, movie_frequencies: np.array
-    ) -> np.array:
-        """Naive sampling strategy to obtain positive and negative movie samples per user.
-
-        The strategy is naive becuase it doesn't account for movie genres.
+    ) -> int:
+        """Sample a negative movie per user.
 
         Args:
-            user (int): userId
+            user (int): userId.
             movie_frequencies (np.array): Array of probabilities of each movie occurring.
 
         Returns:
-            np.array: Array with [u, i, j] per row.
+            int: Movie id which hasn't been watched by the user.
         """
         # u = user, i = positive movie, j = negative movie
         user_subset = self.user_idx[
@@ -86,13 +79,171 @@ class BayesianPersonalisedRanking:
         )
         # Probabilities corresponding to negatives
         movie_frequencies = self.force_probability_sum(movie_frequencies[neg_options])
-        # Sample the same number of negatives as positives
-        neg_samples = np.random.choice(
-            neg_options, p=movie_frequencies, size=user_subset.shape[0], replace=False
+        return np.random.choice(neg_options, p=movie_frequencies, size=1)[0]
+
+    def sample_negative_per_user_genre(
+        self,
+        user: int,
+        pos_movie: int,
+        movie_frequencies: np.array,
+        genre_info: pd.DataFrame,
+    ) -> int:
+        """Sample a negative movie per user using genre information.
+
+        Args:
+            user (int): userId.
+            pos_movie
+            movie_frequencies (np.array): Array of probabilities of each movie occurring.
+            genre_info (pd.DataFrame): Dataframe with movie ids [genres_v2] and their corresponding genres [genres_v2].
+
+        Returns:
+            int: Movie id which hasn't been watched by the user.
+        """
+        # u = user, i = positive movie, j = negative movie
+        user_subset = self.user_idx[
+            self.user_start_index[user] : self.user_end_index[user]
+        ]
+
+        # Positive movie genres
+        pos_genres = genre_info.loc[
+            genre_info["movieId_order"] == pos_movie, "genres_v2"
+        ].values[0]
+
+        # Acceptable negtives - naive
+        neg_options = sorted(
+            set(np.arange(self.num_items)).difference(set(user_subset[:, 1]))
         )
-        # Resultant u, i, j samples
-        triplet = np.hstack([user_subset, neg_samples])
+
+        # Probabilities corresponding to negatives
+        movie_frequencies = self.force_probability_sum(movie_frequencies[neg_options])
+
+        check_appropriate_choice = True
+        while check_appropriate_choice:
+            guess_random_choice = np.random.choice(
+                neg_options, p=movie_frequencies, size=1
+            )[0]
+            # Check if random choice genre not in list of genres
+            random_choice_genre = genre_info.loc[
+                genre_info["movieId_order"] == guess_random_choice, "genres_v2"
+            ].values[0]
+            if len(set(random_choice_genre).intersection(set(pos_genres))) == 0:
+                check_appropriate_choice = False
+        return guess_random_choice
+
+    def draw_triplet_per_user_naive(
+        self, user: int, movie_frequencies: np.array
+    ) -> np.array:
+        """Naive sampling strategy to obtain a positive and negative movie sample per user.
+
+        The strategy is naive because it doesn't account for movie genres.
+
+        Args:
+            user (int): userId
+            movie_frequencies (np.array): Array of probabilities of each movie occurring.
+
+        Returns:
+            np.array: Array with [u, i, j]
+        """
+        # u = user, i = positive movie, j = negative movie
+        user_subset = self.user_idx[
+            self.user_start_index[user] : self.user_end_index[user]
+        ]
+        # Acceptable negtives
+        neg_options = sorted(
+            set(np.arange(self.num_items)).difference(set(user_subset[:, 1]))
+        )
+        # Probabilities corresponding to negatives
+        movie_frequencies = self.force_probability_sum(movie_frequencies[neg_options])
+        # Resultant u, i, j sample
+        triplet = np.array(
+            [
+                user,
+                np.random.choice(user_subset[:, 1]),
+                np.random.choice(
+                    neg_options, p=movie_frequencies, size=1, replace=False
+                )[0],
+            ]
+        )
         return triplet
+
+    def compute_gradients(
+        self, triplet: np.array, x_uij: float
+    ) -> tuple[np.array, np.array, np.array]:
+        """Return the gradients of the user vector, positive movie vector and negative movie vector.
+
+        Args:
+            triplet (np.array): [u, i, j].
+            x_uij (float): x_ui-x_uj.
+
+        Returns:
+            tuple[np.array, np.array, np.array]: Three gradients for SGD update.
+        """
+        co_efficient = np.exp(-x_uij) / (1 + np.exp(-x_uij))
+        user_grad = co_efficient * (
+            self.movie_matrix_v[triplet[1], :] - self.movie_matrix_v[triplet[2], :]
+        )
+        pos_matrix_grad = co_efficient * self.user_matrix_u[triplet[0], :]
+        neg_matrix_grad = -1 * pos_matrix_grad
+        return user_grad, pos_matrix_grad, neg_matrix_grad
+
+    def sgd_update(
+        self,
+        triplet: np.array,
+        gradients: tuple[np.array, np.array, np.array],
+        regulariser: float,
+    ) -> None:
+        """Perform SGD update.
+
+        Args:
+            triplet (np.array): [u,i,j]
+            gradients (tuple[np.array, np.array, np.array]): Output of compute_gradients function.
+            regulariser (float): Regularisation value.
+        """
+        self.user_matrix_u[triplet[0], :] += self.learning_rate * (
+            gradients[0] + regulariser * self.user_matrix_u[triplet[0], :]
+        )
+        self.movie_matrix_v[triplet[1], :] += self.learning_rate * (
+            gradients[1] + regulariser * self.movie_matrix_v[triplet[1], :]
+        )
+        self.movie_matrix_v[triplet[2], :] += self.learning_rate * (
+            gradients[2] + regulariser * self.movie_matrix_v[triplet[2], :]
+        )
+
+    def precision_and_recall_at_k(self, k: int) -> tuple[float, float]:
+        """Find the mean precision at k and mean recall at k over all users.
+
+        Args:
+            k (int): Number of recommendations to make per user.
+
+        Returns:
+            tuple[float, float]: mean precision at k and mean recall at k.
+        """
+        # Store the precision and recall per user
+        precision_at_k = []
+        recall_at_k = []
+        # Iterate over all users
+        for user in range(self.num_users):
+            user_subset = self.user_idx[
+                self.user_start_index[user] : self.user_end_index[user]
+            ]
+            # Define the positive options for this user
+            pos_options = sorted(set(user_subset[:, 1]))
+            # Predict the scores for all items
+            predicted_scores = []
+            for movie in range(self.num_items):
+                predicted_scores.append([movie, self.predict(user, movie)])
+            # Sort predicted scores by score in descending order
+            predicted_scores.sort(key=lambda x: x[1], reverse=True)
+            # Find the top k movies by score
+            top_k_movies = [movie for movie, score in predicted_scores[:k]]
+            # How many of the top k movies are from the positive options?
+            true_positive = len(set(top_k_movies).intersection(pos_options))
+            precision_at_k.append(true_positive / k)
+            recall_at_k.append(true_positive / len(pos_options))
+        # Find the average precision at k and the average recall at k
+        avg_precision_at_k = np.mean(precision_at_k)
+        avg_recall_at_k = np.mean(recall_at_k)
+        return avg_precision_at_k, avg_recall_at_k
 
 
 def create_ratings_df(file_name: str) -> pd.DataFrame:
@@ -137,76 +288,6 @@ def create_ratings_df(file_name: str) -> pd.DataFrame:
     return ratings
 
 
-def reg_logll(
-    u_mat: np.array,
-    v_mat: np.array,
-    tau: float,
-    alpha: float,
-    lmd: float,
-    bias_user: np.array,
-    bias_movie: np.array,
-    num_users: int,
-    user_ratings: np.array,
-    user_start_index: list,
-    user_end_index: list,
-) -> float:
-    """Return the regularised log likelihood.
-
-    Args:
-        u_mat (np.array): User matrix, U.
-        v_mat (np.array): Movie matrix, V.
-        tau (float): Trait vectors regulariser.
-        alpha (float): Bias regulariser.
-        lmd (float): Regulariser.
-        bias_user (np.array): Bias vector for users.
-        bias_movie (np.array): Bias vector for movies.
-        num_users (int): Number of users.
-        user_ratings (np.array): Array of user ids, movie ids and ratings.
-        user_start_index (list): Start index for users.
-        user_end_index (list): End index for users.
-
-    Returns:
-        float: Regularised log likelihood.
-    """
-    log_lik = (
-        # -(tau / 2) * np.sum(np.matmul(u_mat, u_mat.T).diagonal())
-        # - (tau / 2) * np.sum(np.matmul(v_mat, v_mat.T).diagonal())
-        -(alpha / 2) * np.matmul(bias_user.T, bias_user)
-        - (alpha / 2) * np.matmul(bias_movie.T, bias_movie)
-    )
-    # U, Ut
-    val = 0
-    for row in u_mat:
-        val += np.dot(row, row)
-    log_lik = log_lik - (tau / 2) * val
-    # V, Vt
-    val = 0
-    for row in v_mat:
-        val += np.dot(row, row)
-    log_lik = log_lik - (tau / 2) * val
-    # term with m and n element of omega(m)
-    term = 0
-    for user in range(num_users):
-        # User subset of user ratings
-        user_ratings_subset = user_ratings[
-            user_start_index[user] : user_end_index[user]
-        ]
-        for row in user_ratings_subset:
-            n_movie = row[1]
-            rmn = row[2]
-            term += np.square(
-                rmn
-                - (
-                    np.dot(u_mat[user, :], v_mat[n_movie, :])
-                    + bias_movie[n_movie]
-                    + bias_user[user]
-                )
-            )
-    # Now update loglikelihood
-    log_lik = -(lmd / 2) * term - log_lik
-    return log_lik
-
-
 def index_data(
     ratings_df: pd.DataFrame,
     rating_col_name: str,
@@ -218,7 +299,7 @@ def index_data(
     navigate the long sorted list easily.
 
     Args:
-        ratings_df (pd.DataFrame): Dataframe containing user and item ids as well as the corresponding ratings.
+        ratings_df (pd.DataFrame): Dataframe containing user & item ids.
         rating_col_name (str): Dataframe column name for the ratings.
         id_col_name (str): Dataframe column name for the id.
         other_col_name (str): Dataframe column name for the other id.
@@ -252,36 +333,3 @@ def index_data(
     id_ratings = np.array(id_ratings, dtype=int)
 
     return id_ratings, start_index, end_index
-
-
-def rmse(
-    u_mat: np.array,
-    v_mat: np.array,
-    bias_user: np.array,
-    bias_movie: np.array,
-    user_ratings: np.array,
-) -> float:
-    """Return the root mean squared error.
-
-    Args:
-        u_mat (np.array): User matrix, U.
-        v_mat (np.array): Movie matrix, V.
-        bias_user (np.array): Bias vector for users.
-        bias_movie (np.array): Bias vector for movies.
-        user_ratings (np.array): Array of user ids, movie ids and ratings.
-
-    Returns:
-        float: RMSE value.
-    """
-    squared_error = 0
-    num_ratings = user_ratings.shape[0]
-    for row in user_ratings:
-        m_user, n_movie, rmn = row[0], row[1], row[2]
-        squared_error += np.square(
-            np.dot(u_mat[m_user, :], v_mat[n_movie, :])
-            + bias_user[m_user]
-            + bias_movie[n_movie]
-            - rmn
-        )
-    rmse_result = np.sqrt((1 / num_ratings) * squared_error)
-    return rmse_result

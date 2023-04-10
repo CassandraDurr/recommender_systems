@@ -4,7 +4,13 @@ from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from recommender_systems.utils.functions import reg_logll, rmse, index_data, update_user, update_movie
+from functions import (
+    reg_logll,
+    rmse,
+    index_data,
+    update_user,
+    update_movie,
+)
 
 gc.collect()
 
@@ -180,11 +186,9 @@ while not conv:
         for i in range(len(start_itm))
     )
     # Copy the updated arrays back to the original arrays
-    for i in range(len(start_itm)):
-        U[start_itm[i] : end_itm[i], :] = user_parallel[i][0][
-            start_itm[i] : end_itm[i], :
-        ]
-        b_m[start_itm[i] : end_itm[i]] = user_parallel[i][1][start_itm[i] : end_itm[i]]
+    for i, itm in enumerate(start_itm):
+        U[itm : end_itm[i], :] = user_parallel[i][0][itm : end_itm[i], :]
+        b_m[itm : end_itm[i]] = user_parallel[i][1][itm : end_itm[i]]
 
     # Run code in parallel
     movie_parallel = Parallel(n_jobs=12)(
@@ -207,13 +211,9 @@ while not conv:
     )
 
     # Copy the updated arrays back to the original arrays
-    for i in range(len(start_itm_mov)):
-        V[start_itm_mov[i] : end_itm_mov[i], :] = movie_parallel[i][0][
-            start_itm_mov[i] : end_itm_mov[i], :
-        ]
-        b_n[start_itm_mov[i] : end_itm_mov[i]] = movie_parallel[i][1][
-            start_itm_mov[i] : end_itm_mov[i]
-        ]
+    for i, itm in enumerate(start_itm_mov):
+        V[itm : end_itm_mov[i], :] = movie_parallel[i][0][itm : end_itm_mov[i], :]
+        b_n[itm : end_itm_mov[i]] = movie_parallel[i][1][itm : end_itm_mov[i]]
 
     # Compute the maximum differences
     dif.append(
@@ -254,7 +254,7 @@ while not conv:
     print(f"Maximum dif in {np.max(dif)}")
 
     # Save parameters
-    if itr % 20 == 0 :
+    if itr % 20 == 0:
         with open("param/u_matrix.npy", "wb") as f:
             np.save(f, U)
         with open("param/v_matrix.npy", "wb") as f:
@@ -266,7 +266,9 @@ while not conv:
         # Plot log likelihood
         plt.figure(figsize=(9, 6))
         plt.plot(loglike, color="#1E63A4")
-        plt.axhline(loglike[-1], color="#F05225", linestyle="dotted", label="Final LL value")
+        plt.axhline(
+            loglike[-1], color="#F05225", linestyle="dotted", label="Final LL value"
+        )
         plt.xlabel("Iteration")
         plt.ylabel("Log likelihood")
         plt.title(f"Log likelihood over training iterations (iter = {loglike[-1]})")
@@ -299,14 +301,14 @@ while not conv:
     gc.collect()
 
 with open("param/u_matrix.npy", "wb") as f:
-            np.save(f, U)
+    np.save(f, U)
 with open("param/v_matrix.npy", "wb") as f:
     np.save(f, V)
 with open("param/bias_user.npy", "wb") as f:
     np.save(f, b_m)
 with open("param/bias_movie.npy", "wb") as f:
     np.save(f, b_n)
-    
+
 # Plot log likelihood
 plt.figure(figsize=(9, 6))
 plt.plot(loglike, color="#1E63A4")

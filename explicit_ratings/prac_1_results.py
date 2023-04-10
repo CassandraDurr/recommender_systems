@@ -5,15 +5,16 @@ from scipy.linalg import cho_factor, cho_solve
 
 # Load U, V, b_n, b_m
 print("25 iterations")
-with open("param/u_matrix_25.npy", "rb") as f:
+with open("explicit_ratings/param/u_matrix_25.npy", "rb") as f:
     U_mat = np.load(f)
-with open("param/v_matrix_25.npy", "rb") as f:
+with open("explicit_ratings/param/v_matrix_25.npy", "rb") as f:
     V_mat = np.load(f)
-with open("param/bias_movie_25.npy", "rb") as f:
+with open("explicit_ratings/param/bias_movie_25.npy", "rb") as f:
     bias_movie = np.load(f)
-with open("param/bias_user_25.npy", "rb") as f:
+with open("explicit_ratings/param/bias_user_25.npy", "rb") as f:
     bias_user = np.load(f)
 
+# Get the raw ratings
 ratings = pd.read_csv("ratings_25m.csv")
 ratings = ratings.drop(columns="timestamp")
 # use 1 to 10 scale to work in integers
@@ -30,18 +31,19 @@ idShift.columns = ["movieId_order", "movieId_lessone"]
 # Combine dataframes on "movieId_lessone"
 ratings = pd.merge(ratings, idShift)
 
-movie_ids = ratings[["movieId", "movieId_order"]].drop_duplicates()
-movie_pd = pd.read_csv("movies.csv")
-movie_pd = movie_pd[["movieId", "title"]]
-movie_ids = pd.merge(movie_ids, movie_pd)
-movie_ids = movie_ids.sort_values(by="movieId")
+# movie_ids = ratings[["movieId", "movieId_order"]].drop_duplicates()
+# movie_pd = pd.read_csv("movies.csv")
+# movie_pd = movie_pd[["movieId", "title"]]
+# movie_ids = pd.merge(movie_ids, movie_pd)
+# movie_ids = movie_ids.sort_values(by="movieId")
+movie_ids = pd.read_csv("movie_ids.csv")
 
 # Assume user bias = 0
 
-# n = 18913 # "Hobbit: An Unexpected Journey, The (2012)"
-# print("Hobbit: An Unexpected Journey, The (2012)")
-n = 16939  # Birdemic: Shock and Terror (2010)
-print("Birdemic: Shock and Terror (2010)")
+n = 18913  # "Hobbit: An Unexpected Journey, The (2012)"
+print("Hobbit: An Unexpected Journey, The (2012)")
+# n = 16939  # Birdemic: Shock and Terror (2010)
+# print("Birdemic: Shock and Terror (2010)")
 rmn = 10.0
 
 # Compute user trait vector
@@ -74,10 +76,22 @@ movieScores = pd.merge(movieScores, movie_ids)
 movieScores = movieScores.sort_values(by="Scores", ascending=False)
 print(movieScores.head(20))
 
+# Remove movies that were only rated by a few people
+removeMoviesLimit = 90
+movie_id_exclude = list(
+    ratings["movieId_order"]
+    .value_counts()
+    .loc[lambda x: x < removeMoviesLimit]
+    .to_frame()
+    .index
+)
+print(f"Excluded movies = {len(movie_id_exclude)}.")
+movieScoresExclude = movieScores[~movieScores["movieId_order"].isin(movie_id_exclude)]
+print(movieScoresExclude.head(20))
+
 # # Napolean Dynamite Effect
 # # Longest vectors
 # movie_lens = np.linalg.norm(V_mat, axis = 1)
 # print(V_mat.shape)
 # print(movie_lens.shape)
 # print(np.argmax(movie_lens)) #16939, Birdemic: Shock and Terror (2010)
-

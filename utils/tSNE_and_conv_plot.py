@@ -7,10 +7,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # --- Convergence ---
-with open("param/loglik.npy", "rb") as f:
+with open("explicit_ratings/param/loglik.npy", "rb") as f:
     loglik = np.load(f)
 
-with open("param/rmse_vals.npy", "rb") as f:
+with open("explicit_ratings/param/rmse_vals.npy", "rb") as f:
     rmse_vals = np.load(f)
 
 
@@ -58,7 +58,7 @@ plt.savefig("figures/RMSE_25.png")
 plt.show()
 
 # --- tSNE plots ---
-with open("param/v_matrix_25.npy", "rb") as f:
+with open("explicit_ratings/param/v_matrix_25.npy", "rb") as f:
     V_mat = np.load(f)
 
 
@@ -122,8 +122,8 @@ fig.update_layout(
     yaxis_title="Dimension 2",
 )
 fig.update_traces(
-    marker={"size":10, "line":{"width":1.5, "color":"DarkSlateGrey"}},
-    selector={"mode":"markers"},
+    marker={"size": 10, "line": {"width": 1.5, "color": "DarkSlateGrey"}},
+    selector={"mode": "markers"},
 )
 fig.write_html("figures/tSNE.html")
 fig.write_image("figures/tSNE.png")

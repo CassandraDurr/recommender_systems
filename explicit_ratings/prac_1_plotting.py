@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib import ticker
 import seaborn as sns
 
-ratings = pd.read_csv("ratings.csv")
+ratings = pd.read_csv("ratings_25m.csv")
 # use 1 to 10 scale to work in integers
 ratings["rating_10"] = ratings["rating"] * 2
 
