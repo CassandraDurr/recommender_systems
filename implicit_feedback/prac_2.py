@@ -3,20 +3,14 @@ import gc
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from joblib import Parallel, delayed
 from functions import BayesianPersonalisedRanking, index_data, create_ratings_df
 
 gc.collect()
 
 # Combine dataframes on "movieId"
+# ratings = create_ratings_df(file_name="ratings_25m.csv")
 ratings = create_ratings_df(file_name="ratings_small.csv")
-
-# # Keep aside a set of observations for testing
-# train_ratings = ratings.sample(frac = 0.9, random_state=441998)
-# test_ratings = ratings.loc[~ratings.index.isin(train_ratings.index)]
-
-# # Check that there are no users or movies only in test
-# print(set(test_ratings["userId"].unique()).difference(set(train_ratings["userId"].unique())))
-# print(set(test_ratings["movieId_order"].unique()).difference(set(train_ratings["movieId_order"].unique())))
 
 # Movie frequencies
 # Obtain frequencies per id
@@ -37,7 +31,7 @@ num_movies = ratings["movieId"].nunique()
 
 # Obtain user index for training
 user_idx, user_start_index, user_end_index = index_data(
-    ratings, "rating_10", "userId", "movieId_order"
+    ratings, "rating_10", "userId_order", "movieId_order"
 )
 # Drop the rating column
 user_idx = user_idx[:, 0:2]
@@ -50,12 +44,11 @@ gc.collect()
 movie_genres = pd.read_csv(
     "implicit_feedback/movies_small_genres.csv", converters={"genres_v2": pd.eval}
 )
-
+# movie_genres = pd.read_csv(
+#     "implicit_feedback/movies_25m_genres.csv", converters={"genres_v2": pd.eval}
+# )
 # Assumptions and initialisations
 latentDim = 12
-lmd = 0.1
-tau = 0.01
-alpha = 0.01
 U = np.random.normal(scale=5 / np.sqrt(latentDim), size=latentDim * num_users).reshape(
     num_users, latentDim
 )
@@ -73,14 +66,24 @@ BPR = BayesianPersonalisedRanking(
     user_start_index=user_start_index,
     user_end_index=user_end_index,
     latent_dim=latentDim,
-    learning_rate=0.01,
+    learning_rate=0.02,
 )
 
 conv = False
 itr = 1
 maxIter = 30
-recall_at_k = []
-precision_at_k = []
+# recall_at_k_10 = []
+# precision_at_k_10 = []
+# recall_at_k_20 = []
+# precision_at_k_20 = []
+# recall_at_k_100 = []
+# precision_at_k_100 = []
+recall_at_k_40 = []
+precision_at_k_40 = []
+recall_at_k_50 = []
+precision_at_k_50 = []
+recall_at_k_60 = []
+precision_at_k_60 = []
 
 while not conv:
     print(f"Iter {itr}")
@@ -111,18 +114,28 @@ while not conv:
             # Perform update
             BPR.sgd_update(triplet=triplet, gradients=gradients, regulariser=0.01)
 
-    # Save parameters every 10 iterations
+    # Save parameters every 5 iterations
     if itr % 5 == 0:
         with open(f"implicit_feedback/param/u_matrix_{itr}.npy", "wb") as f:
             np.save(f, BPR.user_matrix_u)
         with open(f"implicit_feedback/param/v_matrix_{itr}.npy", "wb") as f:
             np.save(f, BPR.movie_matrix_v)
 
-    # Find the average precision and recall at k
-    avg_precision_at_k, avg_recall_at_k = BPR.precision_and_recall_at_k(k=6)
-    print(f"Precision = {avg_precision_at_k}, Recall = {avg_recall_at_k}")
-    precision_at_k.append(avg_precision_at_k)
-    recall_at_k.append(avg_recall_at_k)
+    # Compute precision and recall at k for 3 values of k in parallel
+    k_values = [40, 50, 60]
+    results = Parallel(n_jobs=3)(
+        delayed(BPR.compute_precision_and_recall_at_k)(k) for k in k_values
+    )
+    # Extract the precision at k for each k value
+    precision_at_k = [result[0] for result in results]
+    precision_at_k_40.append(precision_at_k[0])
+    precision_at_k_50.append(precision_at_k[1])
+    precision_at_k_60.append(precision_at_k[2])
+    # Extract the recall at k for each k value
+    recall_at_k = [result[1] for result in results]
+    recall_at_k_40.append(recall_at_k[0])
+    recall_at_k_50.append(recall_at_k[1])
+    recall_at_k_60.append(recall_at_k[2])
 
     if itr == maxIter:
         conv = True
@@ -136,14 +149,34 @@ while not conv:
 # Save parameters
 with open("implicit_feedback/param/u_matrix_final.npy", "wb") as f:
     np.save(f, BPR.user_matrix_u)
-with open("implicit_feedback/param/v_matrix_ifinal.npy", "wb") as f:
+with open("implicit_feedback/param/v_matrix_final.npy", "wb") as f:
     np.save(f, BPR.movie_matrix_v)
 
 # Plot the average precision and recall over the iterations
+# k = 40
 plt.figure(figsize=(9, 6))
-plt.plot(precision_at_k, label="Avg precision at k")
-plt.plot(recall_at_k, label="Avg recall at k")
+plt.plot(precision_at_k_40, label="Avg precision at k")
+plt.plot(recall_at_k_40, label="Avg recall at k")
 plt.xlabel("Iteration")
+plt.title("Recall and precision at k = 40")
 plt.legend()
-plt.savefig("implicit_feedback/figures/precision_recall.png")
+plt.savefig("implicit_feedback/figures/precision_recall_40.png")
+plt.show()
+# k = 50
+plt.figure(figsize=(9, 6))
+plt.plot(precision_at_k_50, label="Avg precision at k")
+plt.plot(recall_at_k_50, label="Avg recall at k")
+plt.xlabel("Iteration")
+plt.title("Recall and precision at k = 50")
+plt.legend()
+plt.savefig("implicit_feedback/figures/precision_recall_50.png")
+plt.show()
+# k = 60
+plt.figure(figsize=(9, 6))
+plt.plot(precision_at_k_60, label="Avg precision at k")
+plt.plot(recall_at_k_60, label="Avg recall at k")
+plt.xlabel("Iteration")
+plt.title("Recall and precision at k = 60")
+plt.legend()
+plt.savefig("implicit_feedback/figures/precision_recall_60.png")
 plt.show()

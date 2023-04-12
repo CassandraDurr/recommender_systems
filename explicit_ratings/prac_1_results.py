@@ -40,10 +40,12 @@ movie_ids = pd.read_csv("movie_ids.csv")
 
 # Assume user bias = 0
 
-n = 18913  # "Hobbit: An Unexpected Journey, The (2012)"
-print("Hobbit: An Unexpected Journey, The (2012)")
+# n = 18913  # "Hobbit: An Unexpected Journey, The (2012)"
+# print("Hobbit: An Unexpected Journey, The (2012)")
 # n = 16939  # Birdemic: Shock and Terror (2010)
 # print("Birdemic: Shock and Terror (2010)")
+n = 38382  # "Hobbit: An Unexpected Journey, The (2012)"
+print("Eyes of Crystal (2004)")
 rmn = 10.0
 
 # Compute user trait vector
@@ -92,6 +94,11 @@ print(movieScoresExclude.head(20))
 # # Napolean Dynamite Effect
 # # Longest vectors
 # movie_lens = np.linalg.norm(V_mat, axis = 1)
-# print(V_mat.shape)
-# print(movie_lens.shape)
 # print(np.argmax(movie_lens)) #16939, Birdemic: Shock and Terror (2010)
+# print(np.argmin(movie_lens)) #16939, Birdemic: Shock and Terror (2010)
+# indices_largest = np.argpartition(movie_lens, -5)[-5:]
+# largest_lengths = movie_lens[indices_largest]
+# indices_smallest = np.argpartition(movie_lens, 5)[:5]
+# smallest_lengths = movie_lens[indices_smallest]
+# print("\nLargest movie trait vectors\n", indices_largest)
+# print("\nSmallest movie trait vectors\n", indices_smallest)

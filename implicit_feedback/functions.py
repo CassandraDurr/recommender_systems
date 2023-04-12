@@ -244,10 +244,16 @@ class BayesianPersonalisedRanking:
         avg_precision_at_k = np.mean(precision_at_k)
         avg_recall_at_k = np.mean(recall_at_k)
         return avg_precision_at_k, avg_recall_at_k
-
+    # Define a function to compute precision and recall at k for parallelisation
+    def compute_precision_and_recall_at_k(self, k):
+        avg_precision_at_k, avg_recall_at_k = self.precision_and_recall_at_k(k=k)
+        print(f"k={k}: Precision = {avg_precision_at_k}, Recall = {avg_recall_at_k}")
+        return avg_precision_at_k, avg_recall_at_k
 
 def create_ratings_df(file_name: str) -> pd.DataFrame:
     """Ingest a ratings csv with columns userId, movieId and ratings and adapt indices.
+    
+    Remove ratings lower than 4, or 8 in 10 star rating.
 
     Args:
         file_name (str): Location of ratings csv to be ingested.
@@ -261,6 +267,15 @@ def create_ratings_df(file_name: str) -> pd.DataFrame:
     """
     ratings = pd.read_csv(file_name)
     ratings = ratings.drop(columns="timestamp")
+    # Drop ratings lower than 4 stars.
+    print(f"Number of ratings using all stars: {ratings.shape[0]}")
+    ratings = ratings[ratings["rating"]>=4]
+    print(f"Number of ratings using 4+ stars: {ratings.shape[0]}")
+    # Drop users with less than 10 ratings given the above condition
+    user_removal = ratings['userId'].value_counts().reset_index()
+    user_removal = user_removal[user_removal['userId'] < 10]['index'].values
+    ratings = ratings[~ratings["userId"].isin(user_removal)]
+    print(f"Number of ratings with reduced number of users: {ratings.shape[0]}")
     # use 1 to 10 scale to work in integers
     ratings["rating_10"] = ratings["rating"] * 2
     # start the user and movie ratings at 0
@@ -273,18 +288,30 @@ def create_ratings_df(file_name: str) -> pd.DataFrame:
         f"Movie id: min={np.min(ratings['movieId'])}, max = {np.max(ratings['movieId'])}, total = {ratings['movieId'].nunique()}"
     )
     # There is an issue that not all movies are present in the ratings csv.
-    # The number of movie ids = 59,047 but the maximum movie id = 209170
-    # We need to add a column to the ratings dataframe that matches
-    # each movie id to a new id from 0 to 59,046.
     id_shift = pd.DataFrame()
     id_shift["movieId"] = ratings["movieId"].unique().copy()
     id_shift = id_shift.sort_values(by="movieId")
     id_shift.reset_index(drop=True, inplace=True)
     id_shift.reset_index(drop=False, inplace=True)
     id_shift.columns = ["movieId_order", "movieId"]
-
     # Combine dataframes on "movieId"
     ratings = pd.merge(ratings, id_shift)
+    # There is also an issue that not all users are present in the ratings data after dropping rows.
+    id_shift = pd.DataFrame()
+    id_shift["userId"] = ratings["userId"].unique().copy()
+    id_shift = id_shift.sort_values(by="userId")
+    id_shift.reset_index(drop=True, inplace=True)
+    id_shift.reset_index(drop=False, inplace=True)
+    id_shift.columns = ["userId_order", "userId"]
+    # Combine dataframes on "userId"
+    ratings = pd.merge(ratings, id_shift)
+    print(
+        f"User id order: min={np.min(ratings['userId_order'])}, max = {np.max(ratings['userId_order'])}, total = {ratings['userId_order'].nunique()}"
+    )
+    print(
+        f"Movie id order: min={np.min(ratings['movieId_order'])}, max = {np.max(ratings['movieId_order'])}, total = {ratings['movieId_order'].nunique()}"
+    )
+
     return ratings
 
 
