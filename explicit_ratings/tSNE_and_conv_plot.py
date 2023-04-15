@@ -7,10 +7,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # --- Convergence ---
-with open("explicit_ratings/param/loglik.npy", "rb") as f:
+with open("explicit_ratings/param/loglik_genre.npy", "rb") as f:
     loglik = np.load(f)
 
-with open("explicit_ratings/param/rmse_vals.npy", "rb") as f:
+with open("explicit_ratings/param/rmse_vals_genre.npy", "rb") as f:
     rmse_vals = np.load(f)
 
 
@@ -19,12 +19,12 @@ millions_ticks_y = ticker.FuncFormatter(lambda x, pos: "{0:g}".format(x / 1e6))
 fig, ax = plt.subplots(figsize=(9, 6))
 ax.yaxis.set_major_formatter(millions_ticks_y)
 plt.plot(loglik, color="#1E63A4")
-plt.axhline(
-    loglik[24],
-    color="#FFB30F",
-    linestyle="dotted",
-    label=f"LL at iteration 25, {loglik[24]}",
-)
+# plt.axhline(
+#     loglik[24],
+#     color="#FFB30F",
+#     linestyle="dotted",
+#     label=f"LL at iteration 25, {loglik[24]}",
+# )
 plt.axhline(
     loglik[-1], color="#F05225", linestyle="dotted", label=f"Final LL, {loglik[-1]}"
 )
@@ -32,18 +32,18 @@ plt.xlabel("Iteration")
 plt.ylabel("Log likelihood (millions)")
 plt.title("Log likelihood over training iterations")
 plt.legend()
-plt.savefig("figures/loglikelihood_25.png")
+plt.savefig("explicit_ratings/figures/loglikelihood_genre.png")
 plt.show()
 
 # Plot RMSE
 plt.figure(figsize=(9, 6))
 plt.plot(rmse_vals, color="#1E63A4")
-plt.axhline(
-    rmse_vals[24],
-    color="#FFB30F",
-    linestyle="dotted",
-    label=f"RMSE at iteration 25, {rmse_vals[24]}",
-)
+# plt.axhline(
+#     rmse_vals[24],
+#     color="#FFB30F",
+#     linestyle="dotted",
+#     label=f"RMSE at iteration 25, {rmse_vals[24]}",
+# )
 plt.axhline(
     rmse_vals[-1],
     color="#F05225",
@@ -54,11 +54,11 @@ plt.xlabel("Iteration")
 plt.ylabel("RMSE")
 plt.title("RMSE over training iterations")
 plt.legend()
-plt.savefig("figures/RMSE_25.png")
+plt.savefig("explicit_ratings/figures/RMSE_genre.png")
 plt.show()
 
 # --- tSNE plots ---
-with open("explicit_ratings/param/v_matrix_25.npy", "rb") as f:
+with open("explicit_ratings/param/v_matrix_30_genre.npy", "rb") as f:
     V_mat = np.load(f)
 
 
@@ -126,6 +126,6 @@ fig.update_traces(
     marker={"size": 10, "line": {"width": 1.5, "color": "DarkSlateGrey"}},
     selector={"mode": "markers"},
 )
-fig.write_html("explicit_ratings/figures/tSNE.html")
-fig.write_image("explicit_ratings/figures/tSNE.png")
+fig.write_html("explicit_ratings/figures/tSNE_genre.html")
+fig.write_image("explicit_ratings/figures/tSNE_genre.png")
 fig.show()
