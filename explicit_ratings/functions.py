@@ -511,7 +511,7 @@ def simulate_user(
     movie_ids_history = [movie for sublist in movie_ids_history for movie in sublist]
     # Randomly sample high ratings for said movies
     movie_ratings = np.random.choice(
-        [8.0, 8.5, 9.0, 9.5, 10.0], size=len(movie_ids_history)
+        [7.0, 8.0, 9.0, 10.0], size=len(movie_ids_history)
     ).tolist()
     # Randomly assign the user to a group
     group = np.random.choice(["A", "B"])
