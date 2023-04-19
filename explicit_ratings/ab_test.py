@@ -9,13 +9,14 @@ from scipy import stats
 from functions import (
     genre_key_dict,
     simulate_user,
+    find_user_bias,
     find_user_trait_vector,
     top_n_recommendations,
     create_ratings_df,
 )
 
 # If performing an A/B test: True
-performTest = True
+performTest = False
 # If evaluating an A/B test: True
 evaluateTest = True
 
@@ -98,6 +99,7 @@ if performTest:
     # For each user, derive user trait vector and find recommendations
     lmd = 0.1
     tau = 0.01
+    alpha = 0.01
     # Dataframe linking movieId to movieId_order with titles
     movie_ids = pd.read_csv("movie_ids.csv")
     movie_ids.drop(columns=["Unnamed: 0"], inplace=True)
@@ -109,6 +111,14 @@ if performTest:
         # Determine group of user
         if usr_groupings[usr] == "A":
             # Control group
+            # Find user bias
+            user_bias = find_user_bias(
+                control_movie_bias,
+                lmd,
+                alpha,
+                usr_histories[usr],
+                usr_ratings[usr],
+            )
             # Find user trait vector
             user_trait_vector = find_user_trait_vector(
                 control_u,
@@ -118,6 +128,7 @@ if performTest:
                 tau,
                 usr_histories[usr],
                 usr_ratings[usr],
+                user_bias,
             )
             # Find top 20 recommendations
             recomm = top_n_recommendations(
@@ -144,6 +155,14 @@ if performTest:
                 )
         elif usr_groupings[usr] == "B":
             # Treatment group
+            # Find user bias
+            user_bias = find_user_bias(
+                treat_movie_bias,
+                lmd,
+                alpha,
+                usr_histories[usr],
+                usr_ratings[usr],
+            )
             # Find user trait vector
             user_trait_vector = find_user_trait_vector(
                 treat_u,
@@ -153,6 +172,7 @@ if performTest:
                 tau,
                 usr_histories[usr],
                 usr_ratings[usr],
+                user_bias,
             )
             # Find top 20 recommendations
             recomm = top_n_recommendations(
@@ -211,10 +231,10 @@ if performTest:
         ]
     ]
     # Store logging
-    logging.to_csv("explicit_ratings/logging/AB_test.csv", index=False)
+    logging.to_csv("explicit_ratings/logging/AB_test_with_bias.csv", index=False)
 
 if evaluateTest:
-    logging = pd.read_csv("explicit_ratings/logging/AB_test.csv")
+    logging = pd.read_csv("explicit_ratings/logging/AB_test_with_bias.csv")
     # Check the number of users in group A vs group B
     # A paired t-test cannot be performed if group sizes are unequal.
     group_cnts = logging["group"].value_counts() / 20
@@ -256,46 +276,119 @@ if evaluateTest:
     print(f"Levene test result: \nt = {l_statistic}  p-value = {p_value}")
 
     if p_value < 0.05:
-        print("Populations do not have equal variances. Perform Welchs t-test.")
+        print("Populations do not have equal variances.")
+        print("Perform Welchs t-test if samples are normally distributed.")
         equalVariance = False
     else:
-        print("Populations have equal variances. Perform t-test.")
+        print("Populations have equal variances.")
+        print("Perform Welchs t-test if samples are normally distributed.")
         equalVariance = True
-    # T-test to measure difference in top 20 scores.
-    # 1. Two-tailed t-test (means are the same)
-    t_statistic, p_value = stats.ttest_ind(
-        control_group["score"], treatment_group["score"], equal_var=equalVariance
+
+    # Use Shapiro Wilk to determine if samples are normally distributed.
+    s_statistic_c, p_value_c = stats.shapiro(control_group["score"])
+    print(
+        f"Shapiro Wilk test control group: \ns = {s_statistic_c}  p-value = {p_value_c}"
     )
-    print(f"Two-tailed t-test result: \nt = {t_statistic}  p-value = {p_value}")
-    if p_value < 0.05:
-        # Reject the null hypothesis.
-        print("There is a significant difference between the means of the two groups.")
+    s_statistic_t, p_value_t = stats.shapiro(treatment_group["score"])
+    print(
+        f"Shapiro Wilk test treatment group: \ns = {s_statistic_t}  p-value = {p_value_t}"
+    )
+    if (p_value_c > 0.05) and (p_value_t > 0.05):
+        print("Both populations are likely Gaussian.")
+        bothGaussian = True
     else:
-        print("There is no significant difference between the means of the two groups.")
+        print("Both populations are not likely Gaussian.")
+        print("Use the Wilcoxon rank-sum test instead.")
+        bothGaussian = False
 
-    # 2. One tailed t-test: control is better
-    t_statistic, p_value = stats.ttest_ind(
-        control_group["score"],
-        treatment_group["score"],
-        alternative="greater",
-        equal_var=equalVariance,
-    )
-    print(f"One-tailed t-test result - A>B: \nt = {t_statistic}  p-value = {p_value}")
-    if p_value < 0.05:
-        # Reject the null hypothesis.
-        print("Control has a significantly higher mean than Treatment.")
+    # T-test to measure difference in top 20 scores, assuming normality.
+    if bothGaussian:
+        # 1. Two-tailed t-test (means are the same)
+        t_statistic, p_value = stats.ttest_ind(
+            control_group["score"], treatment_group["score"], equal_var=equalVariance
+        )
+        print(f"Two-tailed t-test result: \nt = {t_statistic}  p-value = {p_value}")
+        if p_value < 0.05:
+            # Reject the null hypothesis.
+            print(
+                "There is a significant difference between the means of the two groups."
+            )
+        else:
+            print(
+                "There is no significant difference between the means of the two groups."
+            )
 
-    # 2. One tailed t-test: treatment is better
-    t_statistic, p_value = stats.ttest_ind(
-        treatment_group["score"],
-        control_group["score"],
-        alternative="greater",
-        equal_var=equalVariance,
-    )
-    print(f"One-tailed t-test result - B>A: \nt = {t_statistic}  p-value = {p_value}")
-    if p_value < 0.05:
-        # Reject the null hypothesis.
-        print("Treatment has a significantly higher mean than Control.")
+        # 2. One tailed t-test: control is better
+        t_statistic, p_value = stats.ttest_ind(
+            control_group["score"],
+            treatment_group["score"],
+            alternative="greater",
+            equal_var=equalVariance,
+        )
+        print(
+            f"One-tailed t-test result - A>B: \nt = {t_statistic}  p-value = {p_value}"
+        )
+        if p_value < 0.05:
+            # Reject the null hypothesis.
+            print("Control has a significantly higher mean than Treatment.")
+
+        # 2. One tailed t-test: treatment is better
+        t_statistic, p_value = stats.ttest_ind(
+            treatment_group["score"],
+            control_group["score"],
+            alternative="greater",
+            equal_var=equalVariance,
+        )
+        print(
+            f"One-tailed t-test result - B>A: \nt = {t_statistic}  p-value = {p_value}"
+        )
+        if p_value < 0.05:
+            # Reject the null hypothesis.
+            print("Treatment has a significantly higher mean than Control.")
+    else:
+        # Wilcoxon rank-sum test
+        # 1. Two-tailed test (medians are the same)
+        s_statistic, p_value = stats.ranksums(
+            control_group["score"], treatment_group["score"]
+        )
+        print(
+            f"Two-tailed Wilcoxon rank-sum test result: \ns = {s_statistic}  p-value = {p_value}"
+        )
+        if p_value < 0.05:
+            # Reject the null hypothesis.
+            print(
+                "There is a significant difference between the medians of the two groups."
+            )
+        else:
+            print(
+                "There is no significant difference between the medians of the two groups."
+            )
+
+        # 2. One tailed test: control is better
+        s_statistic, p_value = stats.ranksums(
+            control_group["score"],
+            treatment_group["score"],
+            alternative="greater",
+        )
+        print(
+            f"Wilcoxon rank-sum test result - A>B: \nt = {s_statistic}  p-value = {p_value}"
+        )
+        if p_value < 0.05:
+            # Reject the null hypothesis.
+            print("Control has a significantly higher median than Treatment.")
+
+        # 2. One tailed test: treatment is better
+        s_statistic, p_value = stats.ranksums(
+            treatment_group["score"],
+            control_group["score"],
+            alternative="greater",
+        )
+        print(
+            f"Wilcoxon rank-sum test result - B>A: \nt = {s_statistic}  p-value = {p_value}"
+        )
+        if p_value < 0.05:
+            # Reject the null hypothesis.
+            print("Treatment has a significantly higher median than Control.")
 
     # Plot the scores for the control and treatment group
     plt.figure(figsize=(9, 5), constrained_layout=True)
@@ -319,6 +412,6 @@ if evaluateTest:
         medianprops={"linewidth": 1, "color": "#00235B"},
     )
     plt.title("Box plot of scores from both groups")
-    plt.gca().axes.get_xaxis().set_visible(False)
-    plt.savefig("explicit_ratings/figures/boxplot.png")
+    # plt.gca().axes.get_xaxis().set_visible(False)
+    plt.savefig("explicit_ratings/figures/boxplot_with_bias.png")
     plt.show()

@@ -476,7 +476,7 @@ def genre_key_dict(file_location: str, genres: dict[str, int]) -> dict[int, list
     movie_genres.drop(columns=["genre_names"], inplace=True)
     # Create genre dictionary
     genre_dict = {}
-    for index, row in movie_genres.iterrows():
+    for _, row in movie_genres.iterrows():
         # for each genre in a movies list of genres
         for genre_value in row["genre_values"]:
             # if the key already exists
@@ -519,6 +519,35 @@ def simulate_user(
     return movie_ids_history, movie_ratings, group
 
 
+def find_user_bias(
+    bias_movie: np.array,
+    lmd: float,
+    alpha: float,
+    usr_history: list[int],
+    usr_ratings: list[float],
+) -> float:
+    """Find the user trait vector for a new user with a set of previous ratings.
+
+    Args:
+        bias_movie (np.array): Trained movie biases, b_n^i.
+        lmd (float): Objective function regulariser, lambda.
+        alpha (float): bias regulariser, alpha.
+        usr_history (list[int]): List of movie ids that a user rated.
+        usr_ratings (list[float]): User's ratings of movies.
+
+    Returns:
+        float: Learned bias of the user.
+    """
+    # Assume user trait vector initially zero
+    # Therefore u_m'v_n = 0
+    user_bias = 0
+    # Iterate over movies rated by user
+    for cnt, movie_id in enumerate(usr_history):
+        user_bias += usr_ratings[cnt] - bias_movie[movie_id]
+    user_bias = lmd * user_bias / (alpha + lmd * len(usr_ratings))
+    return user_bias
+
+
 def find_user_trait_vector(
     u_mat: np.array,
     v_mat: np.array,
@@ -527,10 +556,9 @@ def find_user_trait_vector(
     tau: float,
     usr_history: list[int],
     usr_ratings: list[float],
+    usr_bias: float,
 ) -> np.array:
     """Find the user trait vector for a new user with a set of previous ratings.
-
-    Assume a user bias of zero.
 
     Args:
         u_mat (np.array): Trained user matrix, U.
@@ -540,6 +568,7 @@ def find_user_trait_vector(
         tau (float): User matrix regulariser, tau.
         usr_history (list[int]): List of movie ids that a user rated.
         usr_ratings (list[float]): User's ratings of movies.
+        usr_bias (float): Learned user bias.
 
     Returns:
         np.array: User trait vector.
@@ -552,7 +581,7 @@ def find_user_trait_vector(
     vv_mat = 0
     # Iterate over movies rated by user
     for cnt, movie_id in enumerate(usr_history):
-        ratings_term += (usr_ratings[cnt] - bias_movie[movie_id] - 0) * v_mat[
+        ratings_term += (usr_ratings[cnt] - bias_movie[movie_id] - usr_bias) * v_mat[
             movie_id, :
         ]
         vv_mat += np.matmul(

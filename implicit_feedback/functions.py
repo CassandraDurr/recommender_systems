@@ -244,15 +244,25 @@ class BayesianPersonalisedRanking:
         avg_precision_at_k = np.mean(precision_at_k)
         avg_recall_at_k = np.mean(recall_at_k)
         return avg_precision_at_k, avg_recall_at_k
+
     # Define a function to compute precision and recall at k for parallelisation
-    def compute_precision_and_recall_at_k(self, k):
+    def compute_precision_and_recall_at_k(self, k: int) -> tuple[float, float]:
+        """Function for precision and recall at k for the purpose of parallelisation.
+
+        Args:
+            k (int): Number of recommendations to make per user.
+
+        Returns:
+            tuple[float, float]: mean precision at k and mean recall at k.
+        """
         avg_precision_at_k, avg_recall_at_k = self.precision_and_recall_at_k(k=k)
         print(f"k={k}: Precision = {avg_precision_at_k}, Recall = {avg_recall_at_k}")
         return avg_precision_at_k, avg_recall_at_k
 
+
 def create_ratings_df(file_name: str) -> pd.DataFrame:
     """Ingest a ratings csv with columns userId, movieId and ratings and adapt indices.
-    
+
     Remove ratings lower than 4, or 8 in 10 star rating.
 
     Args:
@@ -269,11 +279,11 @@ def create_ratings_df(file_name: str) -> pd.DataFrame:
     ratings = ratings.drop(columns="timestamp")
     # Drop ratings lower than 4 stars.
     print(f"Number of ratings using all stars: {ratings.shape[0]}")
-    ratings = ratings[ratings["rating"]>=4]
+    ratings = ratings[ratings["rating"] >= 4]
     print(f"Number of ratings using 4+ stars: {ratings.shape[0]}")
     # Drop users with less than 10 ratings given the above condition
-    user_removal = ratings['userId'].value_counts().reset_index()
-    user_removal = user_removal[user_removal['userId'] < 10]['index'].values
+    user_removal = ratings["userId"].value_counts().reset_index()
+    user_removal = user_removal[user_removal["userId"] < 10]["index"].values
     ratings = ratings[~ratings["userId"].isin(user_removal)]
     print(f"Number of ratings with reduced number of users: {ratings.shape[0]}")
     # use 1 to 10 scale to work in integers

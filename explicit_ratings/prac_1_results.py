@@ -91,6 +91,14 @@ print(f"Excluded movies = {len(movie_id_exclude)}.")
 movieScoresExclude = movieScores[~movieScores["movieId_order"].isin(movie_id_exclude)]
 print(movieScoresExclude.head(20))
 
+# Get the top 20 highest rated movies
+# Exclude unpopular movies
+top_ratings = ratings.groupby(["movieId_order"])["rating_10"].mean()
+top_ratings = top_ratings.reset_index()
+top_ratings = top_ratings.sort_values(by="rating_10", ascending=False)
+top_ratings = top_ratings[~top_ratings["movieId_order"].isin(movie_id_exclude)]
+print(top_ratings.head(20))
+
 # # Napolean Dynamite Effect
 # # Longest vectors
 # movie_lens = np.linalg.norm(V_mat, axis = 1)
