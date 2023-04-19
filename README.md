@@ -15,7 +15,7 @@ To use the code in this repository, you'll need to follow these steps:
     - Download the 25M and 100K datasets from https://grouplens.org/datasets/movielens/.
     - Save the ratings and movie csvs from the 25M dataset as "ratings_25m.csv" and "movies_25m.csv" under the ``data`` folder.
     - Save the ratings and movie csvs from the 100K dataset as "ratings_small.csv" and "movies_small.csv" under the ``data`` folder.
-3. Run the python files to train and evaluate the recommendation engines. Module docstrings are used to desribe the function of each python file. 
+4. Run the python files to train and evaluate the recommendation engines. Module docstrings are used to desribe the function of each python file. 
 
 ## Results
 - Typical data used to train recommender engines exhibit power laws and this needs to be taken into account when making recommendations (e.g. down-weighting item biases when scoring films, filtering out movies infrequently rated and/ or accounting for variance with a Variational Bayes model).
