@@ -2,8 +2,8 @@
 import pandas as pd
 
 # Incorporating genre information
-# ratings = pd.read_csv("ratings_small.csv")
-ratings = pd.read_csv("ratings_25m.csv")
+# ratings = pd.read_csv("data/ratings_small.csv")
+ratings = pd.read_csv("data/ratings_25m.csv")
 ratings = ratings[ratings["rating"] >= 4]
 ratings = ratings.drop(columns="timestamp")
 # use 1 to 10 scale to work in integers
@@ -22,8 +22,8 @@ ratings = pd.merge(ratings, idShift)
 
 movie_ids = ratings[["movieId", "movieId_order"]].drop_duplicates()
 
-# movie_pd = pd.read_csv("movies_small.csv")
-movie_pd = pd.read_csv("movies_25m.csv")
+# movie_pd = pd.read_csv("data/movies_small.csv")
+movie_pd = pd.read_csv("data/movies_25m.csv")
 movie_pd = movie_pd[["movieId", "title", "genres"]]
 movie_ids = pd.merge(movie_ids, movie_pd)
 movie_ids = movie_ids.sort_values(by="movieId_order")
@@ -32,5 +32,5 @@ movie_ids.reset_index(inplace=True, drop=True)
 
 print(movie_ids.head(20))
 
-# movie_ids.to_csv("movies_small_genres.csv")
-movie_ids.to_csv("movies_25m_genres.csv")
+# movie_ids.to_csv("data/movies_small_genres.csv")
+movie_ids.to_csv("data/movies_25m_genres.csv")

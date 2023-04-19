@@ -9,8 +9,8 @@ from functions import BayesianPersonalisedRanking, index_data, create_ratings_df
 gc.collect()
 
 # Combine dataframes on "movieId"
-# ratings = create_ratings_df(file_name="ratings_25m.csv")
-ratings = create_ratings_df(file_name="ratings_small.csv")
+# ratings = create_ratings_df(file_name="data/ratings_25m.csv")
+ratings = create_ratings_df(file_name="data/ratings_small.csv")
 
 # Movie frequencies
 # Obtain frequencies per id
@@ -42,10 +42,10 @@ gc.collect()
 
 # Movie genres df
 movie_genres = pd.read_csv(
-    "implicit_feedback/movies_small_genres.csv", converters={"genres_v2": pd.eval}
+    "data/movies_small_genres.csv", converters={"genres_v2": pd.eval}
 )
 # movie_genres = pd.read_csv(
-#     "implicit_feedback/movies_25m_genres.csv", converters={"genres_v2": pd.eval}
+#     "data/movies_25m_genres.csv", converters={"genres_v2": pd.eval}
 # )
 # Assumptions and initialisations
 latentDim = 12

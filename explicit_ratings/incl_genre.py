@@ -15,7 +15,7 @@ from functions import (
 # columns: movieId,movieId_order,title,genres,genres_v2
 # genres_v2 is contains lists of strings for the sets of movie genres
 movie_genres = pd.read_csv(
-    "movies_25m_genres_full.csv", converters={"genres_v2": pd.eval}
+    "data/movies_25m_genres_full.csv", converters={"genres_v2": pd.eval}
 )
 # Drop irrelevant columns and rename 'genres_v2
 movie_genres.drop(columns=["Unnamed: 0", "genres", "movieId", "title"], inplace=True)
@@ -69,7 +69,7 @@ for index, row in movie_genres.iterrows():
             genre_dict[genre_value] = [row["movieId_order"]]
 
 # Create ratings dataframe, as before
-ratings = create_ratings_df(file_name="ratings_25m.csv")
+ratings = create_ratings_df(file_name="data/ratings_25m.csv")
 
 # Create indices
 user_ratings, user_start_index, user_end_index = index_data(

@@ -7,16 +7,16 @@ from sklearn.manifold import TSNE
 from functions import create_ratings_df
 
 # Get the ratings, as processed previously in prac 2
-ratings = create_ratings_df("ratings_small.csv")
+ratings = create_ratings_df("data/ratings_small.csv")
 movie_ids = ratings[["movieId", "movieId_order"]].drop_duplicates()
 # Merge with movies csv
-movie_pd = pd.read_csv("movies_small.csv")
+movie_pd = pd.read_csv("data/movies_small.csv")
 # Start movie ids at 0
 movie_pd["movieId"] = movie_pd["movieId"] - 1
 movie_pd = movie_pd[["movieId", "title"]]
 movie_ids = pd.merge(movie_ids, movie_pd)
 movie_ids = movie_ids.sort_values(by="movieId")
-movie_ids.to_csv("implicit_feedback/movie_ids_small.csv")
+movie_ids.to_csv("data/movie_ids_small.csv")
 
 # --- tSNE plots ---
 with open("implicit_feedback/param/v_matrix_10.npy", "rb") as f:

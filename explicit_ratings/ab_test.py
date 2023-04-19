@@ -65,7 +65,7 @@ if performTest:
         [4, 16],  # Western and Action
     ]
     genre_dict = genre_key_dict(
-        file_location="movies_25m_genres_full.csv", genres=genre_ids
+        file_location="data/movies_25m_genres_full.csv", genres=genre_ids
     )
 
     # Obtain U, V and movie_bias for the control and treatment group.
@@ -101,10 +101,10 @@ if performTest:
     tau = 0.01
     alpha = 0.01
     # Dataframe linking movieId to movieId_order with titles
-    movie_ids = pd.read_csv("movie_ids.csv")
+    movie_ids = pd.read_csv("data/movie_ids.csv")
     movie_ids.drop(columns=["Unnamed: 0"], inplace=True)
     # Create ratings dataframe, as before
-    ratings = create_ratings_df(file_name="ratings_25m.csv")
+    ratings = create_ratings_df(file_name="data/ratings_25m.csv")
     # Store experiment results
     logging = []
     for usr in range(dummyUsers):
@@ -412,6 +412,5 @@ if evaluateTest:
         medianprops={"linewidth": 1, "color": "#00235B"},
     )
     plt.title("Box plot of scores from both groups")
-    # plt.gca().axes.get_xaxis().set_visible(False)
     plt.savefig("explicit_ratings/figures/boxplot_with_bias.png")
     plt.show()

@@ -62,7 +62,7 @@ with open("explicit_ratings/param/v_matrix_30_genre.npy", "rb") as f:
     V_mat = np.load(f)
 
 
-movie_ids = pd.read_csv("movie_ids.csv")
+movie_ids = pd.read_csv("data/movie_ids.csv")
 colours = []
 movie_names = []
 df = pd.DataFrame()

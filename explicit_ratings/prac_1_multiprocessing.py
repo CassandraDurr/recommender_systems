@@ -15,7 +15,7 @@ from functions import (
 gc.collect()
 
 
-ratings = pd.read_csv("ratings_25m.csv")
+ratings = pd.read_csv("data/ratings_25m.csv")
 ratings = ratings.drop(columns="timestamp")
 # use 1 to 10 scale to work in integers
 ratings["rating_10"] = ratings["rating"] * 2

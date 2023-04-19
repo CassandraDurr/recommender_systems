@@ -7,7 +7,7 @@ from functions import reg_logll, rmse, index_data, create_ratings_df
 gc.collect()
 
 # Combine dataframes on "movieId"
-ratings = create_ratings_df(file_name="ratings_25m.csv")
+ratings = create_ratings_df(file_name="data/ratings_25m.csv")
 
 
 user_ratings, user_start_index, user_end_index = index_data(

@@ -15,7 +15,7 @@ with open("explicit_ratings/param/bias_user_25.npy", "rb") as f:
     bias_user = np.load(f)
 
 # Get the raw ratings
-ratings = pd.read_csv("ratings_25m.csv")
+ratings = pd.read_csv("data/ratings_25m.csv")
 ratings = ratings.drop(columns="timestamp")
 # use 1 to 10 scale to work in integers
 ratings["rating_10"] = ratings["rating"] * 2
@@ -32,11 +32,11 @@ idShift.columns = ["movieId_order", "movieId_lessone"]
 ratings = pd.merge(ratings, idShift)
 
 # movie_ids = ratings[["movieId", "movieId_order"]].drop_duplicates()
-# movie_pd = pd.read_csv("movies.csv")
+# movie_pd = pd.read_csv("data/movies.csv")
 # movie_pd = movie_pd[["movieId", "title"]]
 # movie_ids = pd.merge(movie_ids, movie_pd)
 # movie_ids = movie_ids.sort_values(by="movieId")
-movie_ids = pd.read_csv("movie_ids.csv")
+movie_ids = pd.read_csv("data/movie_ids.csv")
 
 # Assume user bias = 0
 
